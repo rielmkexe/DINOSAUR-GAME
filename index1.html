@@ -500,7 +500,7 @@
             background: transparent;
             color: #ffb6c1;
             border: 2px solid #ffd700;
-            transition: all 0.2s ease;
+            transition: all 0.1s ease !important; /* Made faster to match run effect */
         }
 
         .btn-no:hover {
@@ -520,7 +520,6 @@
 
         .btn-no.funny-run {
             position: fixed !important;
-            transition: all 0.3s ease !important;
             z-index: 9999;
         }
 
@@ -615,7 +614,7 @@
             cursor: pointer;
             font-family: 'Lato', sans-serif;
             font-weight: 700;
-            transition: all 0.2s ease;
+            transition: all 0.1s ease !important;
             position: relative;
         }
 
@@ -1025,8 +1024,8 @@
                 setTimeout(() => {
                     first.cell.classList.add('matched');
                     second.cell.classList.add('matched');
-                    first.cell.classList.remove('flipped');
-                    second.cell.classList.remove('flipped');
+                    first.cell.remove('flipped');
+                    second.cell.remove('flipped');
                     matchedPairs++;
                     document.getElementById('matchCount').textContent = matchedPairs;
                     document.getElementById('gameMessage').textContent = 'Match! 🎉';
@@ -1054,8 +1053,6 @@
             isGameActive = false;
             clearInterval(timerInterval);
             document.getElementById('gameMessage').textContent = 'YOU WIN! 🏆';
-            
-            // Auto start audio play on user interaction transition
             startMusic();
 
             setTimeout(() => {
@@ -1074,68 +1071,94 @@
             document.getElementById('startScreen').classList.add('visible');
         }
 
-        // ==================== EXPERIENCE FLOW ====================
         function startExperience() {
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('mainContainer').classList.add('visible');
-            startMusic();
+            createFloatingFlowers();
         }
 
-        // ==================== MUSIC AUTOPLAY FUNCTION ====================
+        // ==================== EXPERIENCE INTERACTION LOGIC ====================
         function startMusic() {
             const music = document.getElementById('bgMusic');
-            if (music && music.paused) {
-                music.play().catch(error => {
-                    console.log("Autoplay context initialization waiting for click event.");
-                });
+            music.play().catch(e => console.log("Audio play deferred setup: " + e));
+        }
+
+        function createFloatingFlowers() {
+            const container = document.getElementById('flowersContainer');
+            const icons = ['🌻', '🌸', '🌹', '🌼', '🌷'];
+            for (let i = 0; i < 20; i++) {
+                const fl = document.createElement('div');
+                fl.className = 'flower';
+                fl.innerHTML = icons[Math.floor(Math.random() * icons.length)];
+                fl.style.left = Math.random() * 100 + 'vw';
+                fl.style.animationDelay = Math.random() * 15 + 's';
+                fl.style.fontSize = (Math.random() * 20 + 20) + 'px';
+                container.appendChild(fl);
             }
         }
 
-        // ==================== PROPOSAL INTERACTIONS ====================
-        let currentStage = 1;
-        let noCount = 0;
+        function createSunflowerConfetti() {
+            const container = document.getElementById('confettiContainer');
+            container.style.display = 'block';
+            container.innerHTML = '';
+            for (let i = 0; i < 100; i++) {
+                const c = document.createElement('div');
+                c.className = 'confetti';
+                c.innerHTML = Math.random() > 0.5 ? '🌻' : '✨';
+                c.style.left = Math.random() * 100 + 'vw';
+                c.style.animationDelay = Math.random() * 2 + 's';
+                c.style.fontSize = (Math.random() * 15 + 15) + 'px';
+                container.appendChild(c);
+            }
+        }
+
+        function createDuckRain() {
+            const container = document.getElementById('duckRainContainer');
+            container.style.display = 'block';
+            container.innerHTML = '';
+            for (let i = 0; i < 80; i++) {
+                const d = document.createElement('div');
+                d.className = 'duck-rain';
+                d.innerHTML = Math.random() > 0.3 ? '🦆' : '💕';
+                d.style.left = Math.random() * 100 + 'vw';
+                d.style.animationDelay = Math.random() * 2 + 's';
+                container.appendChild(d);
+            }
+        }
+
+        function teaseNoButton() {
+            const btn = document.getElementById('btnNo');
+            btn.classList.add('funny-run');
+            
+            // Random parameters to jump away within view limits
+            const x = Math.random() * (window.innerWidth - btn.offsetWidth);
+            const y = Math.random() * (window.innerHeight - btn.offsetHeight);
+            
+            btn.style.left = x + 'px';
+            btn.style.top = y + 'px';
+        }
+
+        function moveNoButton() {
+            const btn = document.getElementById('btnSureNo');
+            btn.classList.add('funny-escape');
+            
+            const x = Math.random() * (window.innerWidth - btn.offsetWidth);
+            const y = Math.random() * (window.innerHeight - btn.offsetHeight);
+            
+            btn.style.left = x + 'px';
+            btn.style.top = y + 'px';
+        }
 
         function sayYes() {
             document.getElementById('letterSection').style.display = 'none';
             document.getElementById('proposalSection').style.display = 'none';
             document.getElementById('yesResponse').style.display = 'block';
-            document.getElementById('noResponse').style.display = 'none';
-            
-            // Launch Duck Rain
-            startDuckRain();
+            createDuckRain();
         }
 
         function sayNo() {
-            noCount++;
+            // Fallback action if user somehow triggers click
             document.getElementById('areYouSureOverlay').classList.add('visible');
-            resetAreYouSureContent();
-        }
-
-        function resetAreYouSureContent() {
-            const title = document.getElementById('areYouSureTitle');
-            const text = document.getElementById('areYouSureText');
-            const emoji = document.getElementById('sadDuckEmoji');
-            const btnNo = document.getElementById('btnSureNo');
-
-            btnNo.style.position = 'static';
-            btnNo.classList.remove('funny-escape');
-
-            if (noCount === 1) {
-                emoji.textContent = '🦆';
-                title.textContent = 'Are You Sure?';
-                text.textContent = 'Legit na ba yan?? Pag-isipan mo muna! 🥺';
-                btnNo.textContent = 'Still No 😤';
-            } else if (noCount === 2) {
-                emoji.textContent = '😭';
-                title.textContent = 'Hala, Sure ka talaga?';
-                text.textContent = 'Baka mapindot mo lang, click mo nalang yung YES please? 👉👈';
-                btnNo.textContent = 'No talaga eh 🛑';
-            } else {
-                emoji.textContent = '💔';
-                title.textContent = 'Please?';
-                text.textContent = 'Sige na, change your mind na po... 🙏';
-                btnNo.textContent = 'Ayaw ko 🏃‍♂️';
-            }
         }
 
         function handleSureYes() {
@@ -1145,122 +1168,34 @@
 
         function handleSureNo() {
             document.getElementById('areYouSureOverlay').classList.remove('visible');
-            
             document.getElementById('letterSection').style.display = 'none';
             document.getElementById('proposalSection').style.display = 'none';
-            document.getElementById('yesResponse').style.display = 'none';
             document.getElementById('noResponse').style.display = 'block';
         }
 
         function goBack() {
-            document.getElementById('letterSection').style.display = 'block';
-            document.getElementById('proposalSection').style.display = 'block';
+            // Reset position variables for button
+            const noBtn = document.getElementById('btnNo');
+            noBtn.classList.remove('funny-run');
+            noBtn.style.position = '';
+            noBtn.style.left = '';
+            noBtn.style.top = '';
+
+            const sureNoBtn = document.getElementById('btnSureNo');
+            sureNoBtn.classList.remove('funny-escape');
+            sureNoBtn.style.position = '';
+            sureNoBtn.style.left = '';
+            sureNoBtn.style.top = '';
+
             document.getElementById('yesResponse').style.display = 'none';
             document.getElementById('noResponse').style.display = 'none';
-            
-            // Reset state
-            noCount = 0;
-            stopDuckRain();
-            
-            const btnNo = document.getElementById('btnNo');
-            btnNo.style.position = 'static';
-            btnNo.classList.remove('funny-run', 'funny-shake');
-        }
-
-        // ==================== TEASING BUTTON LOGIC ====================
-        function teaseNoButton() {
-            const btnNo = document.getElementById('btnNo');
-            
-            if (noCount >= 1) {
-                btnNo.classList.add('funny-run');
-                const x = Math.random() * (window.innerWidth - btnNo.offsetWidth - 40) + 20;
-                const y = Math.random() * (window.innerHeight - btnNo.offsetHeight - 40) + 20;
-                btnNo.style.left = x + 'px';
-                btnNo.style.top = y + 'px';
-            } else {
-                btnNo.classList.add('funny-shake');
-            }
-        }
-
-        function moveNoButton() {
-            if (noCount < 2) return;
-            const btnSureNo = document.getElementById('btnSureNo');
-            btnSureNo.classList.add('funny-escape');
-            
-            const x = Math.random() * (window.innerWidth - btnSureNo.offsetWidth - 40) + 20;
-            const y = Math.random() * (window.innerHeight - btnSureNo.offsetHeight - 40) + 20;
-            btnSureNo.style.left = x + 'px';
-            btnSureNo.style.top = y + 'px';
-        }
-
-        // ==================== VISUAL EFFECTS ====================
-        function createFlowerBackground() {
-            const container = document.getElementById('flowersContainer');
-            const flowerIcons = ['🌻', '🌸', '🌷', '🌼', '🌹'];
-            
-            for (let i = 0; i < 30; i++) {
-                const flower = document.createElement('div');
-                flower.className = 'flower';
-                flower.textContent = flowerIcons[Math.floor(Math.random() * flowerIcons.length)];
-                flower.style.left = Math.random() * 100 + 'vw';
-                flower.style.animationDelay = Math.random() * 20 + 's';
-                flower.style.fontSize = (Math.random() * 20 + 15) + 'px';
-                container.appendChild(flower);
-            }
-        }
-
-        function createSunflowerConfetti() {
-            const container = document.getElementById('confettiContainer');
-            container.innerHTML = '';
-            container.style.display = 'block';
-
-            for (let i = 0; i < 50; i++) {
-                const confetti = document.createElement('div');
-                confetti.className = 'confetti';
-                confetti.textContent = '🌻';
-                confetti.style.left = Math.random() * 100 + 'vw';
-                confetti.style.animationDelay = Math.random() * 2 + 's';
-                confetti.style.fontSize = (Math.random() * 20 + 15) + 'px';
-                container.appendChild(confetti);
-            }
-            
-            setTimeout(() => {
-                container.style.display = 'none';
-            }, 5000);
-        }
-
-        let duckInterval = null;
-        function startDuckRain() {
-            const container = document.getElementById('duckRainContainer');
-            container.innerHTML = '';
-            container.style.display = 'block';
-            
-            duckInterval = setInterval(() => {
-                const duck = document.createElement('div');
-                duck.className = 'duck-rain';
-                duck.textContent = Math.random() > 0.5 ? '🦆' : '✨';
-                duck.style.left = Math.random() * 100 + 'vw';
-                duck.style.fontSize = (Math.random() * 20 + 20) + 'px';
-                
-                container.appendChild(duck);
-                
-                setTimeout(() => {
-                    duck.remove();
-                }, 2500);
-            }, 150);
-        }
-
-        function stopDuckRain() {
-            if (duckInterval) clearInterval(duckInterval);
+            document.getElementById('letterSection').style.display = 'block';
+            document.getElementById('proposalSection').style.display = 'block';
             document.getElementById('duckRainContainer').style.display = 'none';
-            document.getElementById('duckRainContainer').innerHTML = '';
         }
 
-        // Initialize script assets on windows load
-        window.onload = function() {
-            createFlowerBackground();
-            initGame();
-        };
+        // Initialize game environment on script parse execution
+        window.onload = initGame;
     </script>
 </body>
 </html>

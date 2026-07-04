@@ -500,7 +500,7 @@
             background: transparent;
             color: #ffb6c1;
             border: 2px solid #ffd700;
-            transition: all 0.1s ease !important; /* Made faster to match run effect */
+            transition: all 0.1s ease !important;
         }
 
         .btn-no:hover {
@@ -758,6 +758,32 @@
             }
         }
 
+        /* Floating Music Controls Button */
+        .music-toggle-btn {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: #ffb6c1;
+            border: 2px solid #fff;
+            color: white;
+            font-size: 1.4em;
+            cursor: pointer;
+            display: none; /* Hidden during minigame, visible when letter opens */
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 182, 193, 0.5);
+            z-index: 3000;
+            transition: all 0.3s ease;
+        }
+
+        .music-toggle-btn:hover {
+            transform: scale(1.1);
+            background: #ffc0cb;
+        }
+
         /* Responsive */
         @media (max-width: 600px) {
             .game-screen h1 {
@@ -818,6 +844,14 @@
             .are-you-sure-box p {
                 font-size: 1em;
             }
+
+            .music-toggle-btn {
+                bottom: 20px;
+                right: 20px;
+                width: 45px;
+                height: 45px;
+                font-size: 1.1em;
+            }
         }
     </style>
 </head>
@@ -830,6 +864,9 @@
 
     <!-- Sunflower Confetti Container -->
     <div class="confetti-container" id="confettiContainer"></div>
+
+    <!-- Floating Music Controls Button -->
+    <button class="music-toggle-btn" id="musicToggleBtn" onclick="toggleMusic()">⏸️</button>
 
     <!-- ==================== MINI GAME SCREEN ==================== -->
     <div class="game-screen" id="gameScreen">
@@ -895,7 +932,7 @@
                     I’ve been putting this together since June 29, and today is finally July 4. I took my time because I wanted to let you know exactly how much I’ve fallen for you. From your endless stories to our daily routine of talking, you’ve completely captured my heart, and what I feel for you just keeps growing deeper every single day.
                 </p>
                 <p>
-                    Looking back, do you remember when I sent you the website I created for you? That was my quiet way of showing you how much I care. Even if the text inside just said "I like you," the truth is, I already loved you back then. It probably didn't show because I was holding back and protecting myself with the walls I still had up. But those walls don't exist anymore. I am completely sure of what I feel, and I want to be by your side forever.
+                    Looking back, do you remember when I sent you the first website I created for you? That was my quiet way of showing you how much I care. Even if the letter inside just said "I really love spending time with you," the truth is, I already loved you back then. It probably didn't show because I was holding back and protecting myself with the walls I still had up. But those walls don't exist anymore. I am completely sure of what I feel, and I want to be by your side forever.
                 </p>
                 <p>
                     There's something else I need to tell you, though. When you made your confession to me while I was "sleeping," I was actually awake for part of it. I caught the exact moment you said you love me, and my heart completely skipped a beat. I stayed still because I didn't want to make you feel awkward, but before I drifted back to sleep, I knew exactly what I heard. It was real.
@@ -928,7 +965,7 @@
             <h2>You Said Yes! 🦆🎉</h2>
             <div class="flower-deco">🦆 🦆 🦆 🦆 🦆</div>
             <p>
-               Yes finally Girlfriend na kita!!!!
+               Yes finally Girlfriend na kita!!!! MINE MINE MINE
             </p>
             <div style="font-size: 4em; margin-top: 20px;">🦆💕🦆💕🦆</div>
             <div>
@@ -1053,7 +1090,6 @@
             isGameActive = false;
             clearInterval(timerInterval);
             document.getElementById('gameMessage').textContent = 'YOU WIN! 🏆';
-            startMusic();
 
             setTimeout(() => {
                 document.getElementById('gameWinOverlay').classList.add('visible');
@@ -1074,13 +1110,28 @@
         function startExperience() {
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('mainContainer').classList.add('visible');
+            document.getElementById('musicToggleBtn').style.display = 'flex'; // Shows control button
             createFloatingFlowers();
+            startMusic(); 
         }
 
         // ==================== EXPERIENCE INTERACTION LOGIC ====================
         function startMusic() {
             const music = document.getElementById('bgMusic');
             music.play().catch(e => console.log("Audio play deferred setup: " + e));
+        }
+
+        function toggleMusic() {
+            const music = document.getElementById('bgMusic');
+            const toggleBtn = document.getElementById('musicToggleBtn');
+            
+            if (music.paused) {
+                music.play();
+                toggleBtn.innerHTML = '⏸️';
+            } else {
+                music.pause();
+                toggleBtn.innerHTML = '🎵';
+            }
         }
 
         function createFloatingFlowers() {
@@ -1130,7 +1181,6 @@
             const btn = document.getElementById('btnNo');
             btn.classList.add('funny-run');
             
-            // Random parameters to jump away within view limits
             const x = Math.random() * (window.innerWidth - btn.offsetWidth);
             const y = Math.random() * (window.innerHeight - btn.offsetHeight);
             
@@ -1157,7 +1207,6 @@
         }
 
         function sayNo() {
-            // Fallback action if user somehow triggers click
             document.getElementById('areYouSureOverlay').classList.add('visible');
         }
 
@@ -1174,7 +1223,6 @@
         }
 
         function goBack() {
-            // Reset position variables for button
             const noBtn = document.getElementById('btnNo');
             noBtn.classList.remove('funny-run');
             noBtn.style.position = '';
@@ -1194,7 +1242,6 @@
             document.getElementById('duckRainContainer').style.display = 'none';
         }
 
-        // Initialize game environment on script parse execution
         window.onload = initGame;
     </script>
 </body>

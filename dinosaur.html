@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dino Run</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #f7f7f7;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 800px;
+            height: 300px;
+            background: #fff;
+            border: 2px solid #535353;
+            overflow: hidden;
+        }
+        #score {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 18px;
+            color: #535353;
+            letter-spacing: 2px;
+            z-index: 10;
+        }
+        #high-score {
+            position: absolute;
+            top: 10px;
+            right: 140px;
+            font-size: 18px;
+            color: #535353;
+            letter-spacing: 2px;
+            z-index: 10;
+        }
+        #game-over, #start-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #535353;
+            z-index: 10;
+        }
+        #game-over { display: none; }
+        #game-over h1, #start-screen h1 { font-size: 36px; margin-bottom: 10px; }
+        #game-over p, #start-screen p { font-size: 14px; color: #777; }
+
+        /* Satire Notification Styles */
+        #satire-popup {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 3px solid #535353;
+            padding: 20px;
+            text-align: center;
+            z-index: 20;
+            width: 320px;
+            box-shadow: 5px 5px 0px #535353;
+        }
+        #satire-popup h3 {
+            font-size: 16px;
+            color: #ff3333;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        #satire-popup p {
+            font-size: 15px;
+            color: #535353;
+            margin-bottom: 15px;
+        }
+        #satire-popup .btn-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+        #satire-popup button {
+            background: #535353;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        #satire-popup button:hover {
+            background: #333;
+        }
+        #satire-popup button.no-btn {
+            background: #e0e0e0;
+            color: #535353;
+            border: 1px solid #535353;
+        }
+        #satire-popup button.no-btn:hover {
+            background: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="score">00000</div>
+        <div id="high-score">HI 00000</div>
+        <div id="start-screen">
+            <h1>DINO RUN</h1>
+            <p>Press SPACE or UP to start</p>
+        </div>
+        <div id="game-over">
+            <h1>GAME OVER</h1>
+            <p>Press SPACE or UP to restart</p>
+        </div>
+
+        <!-- Satire Popup Notification -->
+        <div id="satire-popup">
+            <h3>[ ERROR! ]</h3>
+            <p>wanna try a different game?</p>
+            <div class="btn-container">
+                <button onclick="redirectUser()">Yes</button>
+                <button class="no-btn" onclick="closePopup()">No</button>
+            </div>
+        </div>
+
+        <canvas id="game-canvas" width="800" height="300"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const highScoreEl = document.getElementById('high-score');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over');
+        const satirePopup = document.getElementById('satire-popup');
+
+        let gameState = 'start';
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('dinoHighScore')) || 0;
+        let gameSpeed = 6;
+        let frameCount = 0;
+        let jumpPressed = false;
+        let duckPressed = false;
+
+        // Scale factor to make the pixel grids look right size
+        const pixelScale = 2;
+
+        const dino = {
+            x: 50, y: 200, width: 44, height: 47,
+            groundY: 200, vy: 0, gravity: 0.6, jumpForce: -12,
+            isJumping: false, isDucking: false,
+            frame: 0, frameTimer: 0, frameInterval: 8
+        };
+
+        let obstacles = [];
+        let clouds = [];
+        highScoreEl.textContent = 'HI ' + String(highScore).padStart(5, '0');
+
+        // Matrix patterns for Dino (1 = color, 0 = empty)
+        const DINO_STAND_1 = [
+            [0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0],
+            [0,0,0,0,0,0,0,1,1,1,0,1,1,1,1,0],
+            [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0],
+            [0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0],
+            [0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0],
+            [0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0],
+            [0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0],
+            [1,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+            [0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+            [0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+            [0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0],
+            [0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0],
+            [0,0,0,0,1,1,0,0,1,0,0,0,0,0,0,0],
+            [0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0],
+            [0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0]
+        ];
+
+        const DINO_STAND_2 = [
+            [0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0],
+            [0,0,0,0,0,0,0,1,1,1,0,1,1,1,1,0],
+            [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0],
+            [0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0],
+            [0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0],
+            [0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0],
+            [0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0],
+            [1,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+            [0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],
+            [0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+            [0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0],
+            [0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0],
+            [0,0,0,0,0,1,1,0,1,1,0,0,0,0,0,0],
+            [0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0]
+        ];
+
+        const DINO_DUCK_1 = [
+            [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0],
+            [0,0,0,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,0],
+            [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0],
+            [0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0],
+            [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
+            [0,0,0,0,1,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        ];
+
+        const DINO_DUCK_2 = [
+            [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0],
+            [0,0,0,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,0],
+            [0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0],
+            [0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0],
+            [0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
+            [0,0,0,0,0,1,1,0,1,1,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0]
+        ];
+
+        function drawDino(x, y, frame, isDucking) {
+            ctx.fillStyle = '#535353';
+            let sprite;
+
+            if (isDucking) {
+                sprite = frame === 0 ? DINO_DUCK_1 : DINO_DUCK_2;
+            } else {
+                sprite = frame === 0 ? DINO_STAND_1 : DINO_STAND_2;
+            }
+
+            for (let row = 0; row < sprite.length; row++) {
+                for (let col = 0; col < sprite[row].length; col++) {
+                    if (sprite[row][col] === 1) {
+                        ctx.fillRect(
+                            Math.round(x + col * pixelScale), 
+                            Math.round(y + row * pixelScale), 
+                            pixelScale, 
+                            pixelScale
+                        );
+                    }
+                }
+            }
+        }
+
+        function drawCactus(x, y, type) {
+            ctx.fillStyle = '#535353';
+            if (type === 'small') {
+                ctx.fillRect(x + 6, y, 6, 35);
+                ctx.fillRect(x, y + 10, 6, 4);
+                ctx.fillRect(x, y + 10, 12, 4);
+                ctx.fillRect(x + 12, y + 15, 6, 4);
+            } else if (type === 'group') {
+                drawCactus(x, y, 'small');
+                drawCactus(x + 18, y + 5, 'small');
+            } else {
+                ctx.fillRect(x + 8, y, 8, 40);
+                ctx.fillRect(x, y + 12, 8, 5);
+                ctx.fillRect(x, y + 12, 16, 5);
+                ctx.fillRect(x + 16, y + 18, 8, 5);
+            }
+        }
+
+        function drawCloud(x, y) {
+            ctx.fillStyle = '#d1d1d1';
+            ctx.fillRect(x + 10, y + 5, 30, 10);
+            ctx.fillRect(x, y + 10, 45, 10);
+        }
+
+        function spawnObstacle() {
+            const types = ['small', 'large', 'group'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            let width = 24, height = 40;
+            if (type === 'small') { width = 18; height = 35; }
+            else if (type === 'group') { width = 36; height = 40; }
+
+            obstacles.push({
+                x: canvas.width + 50,
+                y: 251 - height,
+                width: width,
+                height: height,
+                type: type
+            });
+        }
+
+        function spawnCloud() {
+            clouds.push({
+                x: canvas.width + Math.random() * 200,
+                y: 30 + Math.random() * 80,
+                speed: 0.5 + Math.random() * 1
+            });
+        }
+
+        function checkCollision(dino, obstacle) {
+            const padding = 4;
+            return dino.x + padding < obstacle.x + obstacle.width - padding &&
+                   dino.x + dino.width - padding > obstacle.x + padding &&
+                   dino.y + padding < obstacle.y + obstacle.height - padding &&
+                   dino.y + dino.height - padding > obstacle.y + padding;
+        }
+
+        function resetGame() {
+            dino.y = dino.groundY;
+            dino.vy = 0;
+            dino.isJumping = false;
+            dino.isDucking = false;
+            obstacles = [];
+            clouds = [];
+            score = 0;
+            gameSpeed = 6;
+            frameCount = 0;
+            scoreEl.textContent = '00000';
+            satirePopup.style.display = 'none';
+        }
+
+        function update() {
+            if (gameState !== 'playing') return;
+
+            frameCount++;
+
+            if (frameCount % 6 === 0) {
+                score++;
+                scoreEl.textContent = String(score).padStart(5, '0');
+
+                if (score % 100 === 0) {
+                    gameSpeed += 0.5;
+                }
+            }
+
+            if (jumpPressed && !dino.isJumping && !dino.isDucking) {
+                dino.vy = dino.jumpForce;
+                dino.isJumping = true;
+            }
+
+            if (duckPressed && !dino.isJumping) {
+                dino.isDucking = true;
+                dino.height = 20; 
+                dino.y = dino.groundY + 15; 
+            } else {
+                dino.isDucking = false;
+                dino.height = 36; 
+                if (!dino.isJumping) {
+                    dino.y = dino.groundY;
+                }
+            }
+
+            dino.vy += dino.gravity;
+            dino.y += dino.vy;
+
+            if (dino.y >= dino.groundY) {
+                dino.y = dino.groundY;
+                dino.vy = 0;
+                dino.isJumping = false;
+            }
+
+            dino.frameTimer++;
+            if (dino.frameTimer >= dino.frameInterval) {
+                dino.frame = (dino.frame + 1) % 2;
+                dino.frameTimer = 0;
+            }
+
+            if (frameCount % Math.max(60, 120 - Math.floor(gameSpeed * 3)) === 0) {
+                if (Math.random() < 0.7) {
+                    spawnObstacle();
+                }
+            }
+
+            if (frameCount % 200 === 0) {
+                spawnCloud();
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].x -= gameSpeed;
+
+                if (checkCollision(dino, obstacles[i])) {
+                    gameState = 'gameover';
+                    gameOverScreen.style.display = 'block';
+                    satirePopup.style.display = 'block';
+                    
+                    if (score > highScore) {
+                        highScore = score;
+                        localStorage.setItem('dinoHighScore', highScore);
+                        highScoreEl.textContent = 'HI ' + String(highScore).padStart(5, '0');
+                    }
+                    return;
+                }
+
+                if (obstacles[i].x + obstacles[i].width < 0) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            for (let i = clouds.length - 1; i >= 0; i--) {
+                clouds[i].x -= clouds[i].speed;
+                if (clouds[i].x + 50 < 0) {
+                    clouds.splice(i, 1);
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#535353';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, 236);
+            ctx.lineTo(canvas.width, 236);
+            ctx.stroke();
+
+            for (let cloud of clouds) {
+                drawCloud(cloud.x, cloud.y);
+            }
+
+            for (let obstacle of obstacles) {
+                drawCactus(obstacle.x, obstacle.y, obstacle.type);
+            }
+
+            drawDino(dino.x, dino.y, dino.frame, dino.isDucking);
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function redirectUser() {
+            window.location.href = "index1.html";
+        }
+
+        function closePopup() {
+            satirePopup.style.display = 'none';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                if (satirePopup.style.display === 'block') return;
+
+                if (gameState === 'start') {
+                    gameState = 'playing';
+                    startScreen.style.display = 'none';
+                    resetGame();
+                } else if (gameState === 'gameover') {
+                    gameState = 'playing';
+                    gameOverScreen.style.display = 'none';
+                    resetGame();
+                } else if (gameState === 'playing') {
+                    jumpPressed = true;
+                }
+            }
+            if (e.code === 'ArrowDown') {
+                e.preventDefault();
+                duckPressed = true;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                jumpPressed = false;
+            }
+            if (e.code === 'ArrowDown') {
+                duckPressed = false;
+            }
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>
